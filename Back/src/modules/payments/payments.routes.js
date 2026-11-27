@@ -79,18 +79,84 @@ router.post("/payway/checkout", optionalAuth, async (req, res, next) => {
       include: { items: true },
     });
 
+    const buyerFirstName = req.user?.firstName || "Cliente";
+    const buyerLastName = req.user?.lastName || "MZ";
+    const buyerEmailSafe = order.buyerEmail || "cliente@marcelazelaya.com";
+    const buyerIp =
+      (req.headers["x-forwarded-for"] ? String(req.headers["x-forwarded-for"]).split(",")[0].trim() : null) ||
+      req.socket?.remoteAddress ||
+      "190.0.0.1";
+    const cleanIp = buyerIp.replace(/^::ffff:/, "");
+    const amountCents = Math.round(total * 100);
+
     const paywayPayload = {
       site_transaction_id: `MZ_ORDER_${order.id}_${Date.now()}`,
       token: String(token),
       user_id: req.user ? String(req.user.id) : `guest_${order.id}`,
       payment_method_id: Number(paymentMethodId),
       bin: String(bin).slice(0, 6),
-      amount: Math.round(total * 100), // Payway espera el monto en centavos
+      amount: amountCents, // Payway espera el monto en centavos
       currency: "ARS",
       installments: Number(installments) || 1,
       description: `Compra E-Commerce MZ #${order.id}`,
       payment_type: "single",
       sub_payments: [],
+      fraud_detection: {
+        send_to_cs: true,
+        channel: "Web",
+        device_unique_id: `mz_${order.id}_${Date.now()}`,
+        bill_to: {
+          city: "Buenos Aires",
+          country: "AR",
+          customer_id: req.user ? String(req.user.id) : `guest_${order.id}`,
+          email: buyerEmailSafe,
+          first_name: buyerFirstName,
+          last_name: buyerLastName,
+          phone_number: "1100000000",
+          postal_code: "1425",
+          state: "C",
+          street1: "Av. Santa Fe 1000",
+        },
+        purchase_totals: {
+          currency: "ARS",
+          amount: amountCents,
+        },
+        customer_in_site: {
+          days_in_site: 1,
+          is_guest: !req.user,
+          password: "N/A",
+          num_of_transactions: 1,
+          cellphone_number: "1100000000",
+          date_of_birth: "1990-01-01",
+          street: "Av. Santa Fe 1000",
+        },
+        retail_transaction_data: {
+          ship_to: {
+            city: "Buenos Aires",
+            country: "AR",
+            customer_id: req.user ? String(req.user.id) : `guest_${order.id}`,
+            email: buyerEmailSafe,
+            first_name: buyerFirstName,
+            last_name: buyerLastName,
+            phone_number: "1100000000",
+            postal_code: "1425",
+            state: "C",
+            street1: "Av. Santa Fe 1000",
+          },
+          dispatch_method: "storepickup",
+          days_to_delivery: "1",
+          items: order.items.map((item) => ({
+            code: String(item.productId),
+            description: item.productName.slice(0, 100),
+            name: item.productName.slice(0, 60),
+            sku: `MZ-${item.productId}`,
+            total_amount: Math.round(item.unitPrice * item.quantity * 100),
+            quantity: item.quantity,
+            unit_price: Math.round(item.unitPrice * 100),
+          })),
+        },
+        ip_address: cleanIp,
+      },
     };
 
     const pwRes = await fetch(`${env.paywayBaseUrl}/payments`, {

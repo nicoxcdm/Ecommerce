@@ -37,9 +37,10 @@ export default function HomePage({
       if (sortBy) params.sort = sortBy
 
       const res = await api.get('/products', { params })
-      setProducts(res.data)
+      setProducts(Array.isArray(res.data) ? res.data : [])
     } catch (err) {
       console.error('Error cargando productos:', err)
+      setProducts([])
     } finally {
       setLoading(false)
     }

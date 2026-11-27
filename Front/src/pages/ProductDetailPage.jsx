@@ -26,8 +26,12 @@ export default function ProductDetailPage() {
     api
       .get(`/products/${id}`)
       .then((res) => {
-        setProduct(res.data)
-        setActiveImage(res.data.imageUrl || '/assets/products/placeholder.svg')
+        if (res.data && typeof res.data === 'object' && res.data.id) {
+          setProduct(res.data)
+          setActiveImage(res.data.imageUrl || '/assets/products/placeholder.svg')
+        } else {
+          setProduct(null)
+        }
       })
       .catch(() => setProduct(null))
       .finally(() => setLoading(false))

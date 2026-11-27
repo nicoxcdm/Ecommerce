@@ -1,0 +1,486 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// MODELOS COMPARTIDOS CON PLATAFORMA 2 (NO ELIMINAR NI ALTERAR)
+// ============================================================
+
+enum Role {
+  ADMIN
+  DIRECTORA
+  TEACHER
+  STUDENT
+}
+
+enum MaterialKind {
+  video
+  file
+}
+
+enum QuestionType {
+  multiple
+  truefalse
+  essay
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+}
+
+model User {
+  id               Int      @id @default(autoincrement())
+  firstName        String
+  lastName         String
+  dni              String   @unique
+  email            String   @unique
+  passwordHash     String
+  role             Role     @default(STUDENT)
+  emailVerified    Boolean  @default(false)
+  verificationCode String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  country          String   @default("Argentina")
+  modality         String   @default("virtual")
+
+  taughtCourses      Course[]             @relation("TeacherCourses")
+  enrollments        Enrollment[]
+  watchedVideos      VideoWatched[]
+  uploadedMaterials  Material[]           @relation("UploadedMaterials")
+  createdTasks       Task[]               @relation("CreatedTasks")
+  taskSubmissions    TaskSubmission[]
+  createdExams       Exam[]               @relation("CreatedExams")
+  examAttempts       ExamAttempt[]
+  payments           PaymentInstallment[]
+  createdZoomClasses ZoomClass[]          @relation("CreatedZoomClasses")
+  forumPosts         ForumPost[]
+  notifications      Notification[]
+
+  // Relaciones E-Commerce
+  ecommerceProducts  EcommerceProduct[]   @relation("CreatedEcommerceProducts")
+  ecommerceReviews   EcommerceReview[]
+  ecommerceOrders    EcommerceOrder[]
+
+  @@index([role])
+}
+
+model Course {
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String
+  longDescription String?
+  modality        String   @default("virtual")
+  kind            String   @default("curso")
+  isVisible       Boolean  @default(true)
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  teacherId   Int?
+  teacherName String?
+  teacher     User?    @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  videos           CourseVideo[]
+  materials        CourseMaterial[]
+  tasks            Task[]
+  exams            Exam[]
+  enrollments      Enrollment[]
+  payments         PaymentInstallment[]
+  quotaTemplates   CourseQuotaTemplate[]
+  zoomClasses      ZoomClass[]
+  generalMaterials Material[]
+  subjects         Subject[]
+}
+
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  courseId  Int
+  studentId Int
+  createdAt DateTime @default(now())
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([studentId])
+}
+
+model CourseVideo {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  title       String
+  description String?
+  videoUrl    String
+  createdAt   DateTime @default(now())
+
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  watched VideoWatched[]
+
+  @@index([courseId])
+}
+
+model VideoWatched {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  studentId Int
+  watchedAt DateTime @default(now())
+
+  video   CourseVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  student User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, studentId])
+  @@index([studentId])
+}
+
+model CourseMaterial {
+  id        Int      @id @default(autoincrement())
+  courseId  Int
+  name      String
+  size      Int
+  type      String
+  url       String
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+}
+
+model Material {
+  id           Int          @id @default(autoincrement())
+  kind         MaterialKind
+  name         String
+  size         Int
+  type         String
+  url          String
+  createdAt    DateTime     @default(now())
+  courseId     Int?
+  course       Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subjectId    Int?
+  subject      Subject?     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  uploadedById Int?
+  uploadedBy   User?        @relation("UploadedMaterials", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([kind])
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  dueDate     DateTime
+  fileUrl     String?
+  fileName    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courseId    Int?
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  subjectId   Int?
+  subject     Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdById Int
+  createdBy   User     @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
+
+  submissions TaskSubmission[]
+
+  @@index([courseId])
+  @@index([dueDate])
+}
+
+model TaskSubmission {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  studentId   Int
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  url         String
+  submittedAt DateTime @default(now())
+  grade       Float?
+  updatedAt   DateTime @updatedAt
+
+  task    Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, studentId])
+  @@index([studentId])
+}
+
+model Exam {
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String?
+  startDate       DateTime @default(now())
+  dueDate         DateTime
+  durationSeconds Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  courseId    Int?
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  subjectId   Int?
+  subject     Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdById Int
+  createdBy   User     @relation("CreatedExams", fields: [createdById], references: [id], onDelete: Cascade)
+
+  questions ExamQuestion[]
+  attempts  ExamAttempt[]
+
+  @@index([dueDate])
+}
+
+model ExamQuestion {
+  id            Int          @id @default(autoincrement())
+  examId        Int
+  type          QuestionType
+  prompt        String
+  options       Json?
+  correctAnswer Json?
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+}
+
+model ExamAttempt {
+  id               Int      @id @default(autoincrement())
+  examId           Int
+  studentId        Int
+  answers          Json
+  remainingSeconds Int
+  submittedAt      DateTime @default(now())
+  grade            Float?
+
+  exam    Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([studentId])
+}
+
+model PaymentInstallment {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  courseId      Int?
+  name          String        @default("Cuota")
+  description   String?
+  amount        Float         @default(0)
+  currency      String        @default("ARS")
+  dueDate       DateTime?
+  year          Int
+  month         Int
+  status        PaymentStatus @default(PENDING)
+  modality      String        @default("virtual")
+  paymentMethod String?
+  createdAt     DateTime      @default(now())
+  paidAt        DateTime?
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model CourseQuotaTemplate {
+  id          Int       @id @default(autoincrement())
+  courseId    Int
+  name        String
+  description String?
+  amount      Float     @default(0)
+  currency    String    @default("ARS")
+  year        Int
+  month       Int
+  type        String    @default("nacional")
+  modality    String    @default("virtual")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model ZoomClass {
+  id        Int      @id @default(autoincrement())
+  title     String
+  date      String
+  time      String
+  zoomLink  String
+  createdAt DateTime @default(now())
+
+  courseId    Int
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subjectId   Int?
+  subject     Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdById Int
+  createdBy   User     @relation("CreatedZoomClasses", fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+model Subject {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  teacherName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  materials   Material[]
+  tasks       Task[]
+  exams       Exam[]
+  zoomClasses ZoomClass[]
+  forumPosts  ForumPost[]
+
+  @@index([courseId])
+}
+
+model ForumPost {
+  id        Int      @id @default(autoincrement())
+  title     String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjectId Int
+  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  Int?
+  parent    ForumPost?  @relation("ForumReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   ForumPost[] @relation("ForumReplies")
+
+  @@index([subjectId])
+  @@index([parentId])
+}
+
+model StoredFile {
+  id           Int      @id @default(autoincrement())
+  filename     String   @unique
+  originalName String
+  mimeType     String
+  size         Int
+  data         Bytes
+  createdAt    DateTime @default(now())
+
+  @@index([filename])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+// ============================================================
+// MODELOS PROPIOS DEL E-COMMERCE MARCELA ZELAYA
+// ============================================================
+
+enum EcommerceOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model EcommerceCategory {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique
+  slug        String             @unique
+  description String?
+  createdAt   DateTime           @default(now())
+  products    EcommerceProduct[]
+}
+
+model EcommerceProduct {
+  id          Int                @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  listPrice   Float?
+  imageUrl    String
+  images      String[]           @default([])
+  stock       Int                @default(10)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  categoryId  Int?
+  category    EcommerceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdById Int?
+  createdBy   User?              @relation("CreatedEcommerceProducts", fields: [createdById], references: [id], onDelete: SetNull)
+
+  reviews     EcommerceReview[]
+  orderItems  EcommerceOrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model EcommerceReview {
+  id        Int              @id @default(autoincrement())
+  productId Int
+  userId    Int
+  rating    Int
+  comment   String
+  createdAt DateTime         @default(now())
+
+  product   EcommerceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+}
+
+model EcommerceOrder {
+  id             Int                  @id @default(autoincrement())
+  userId         Int?
+  buyerEmail     String?
+  total          Float
+  currency       String               @default("ARS")
+  status         EcommerceOrderStatus @default(PENDING)
+  mpPreferenceId String?
+  mpPaymentId    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  user           User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items          EcommerceOrderItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model EcommerceOrderItem {
+  id          Int              @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  productName String
+  quantity    Int
+  unitPrice   Float
+
+  order       EcommerceOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     EcommerceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}

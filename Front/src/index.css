@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    @apply bg-[#e9e2d6] text-[#2B1E1A] antialiased transition-colors duration-200;
+  }
+}
+
+@layer base {
+  .dark body {
+    @apply bg-[#1C1513] text-[#FBF7F4];
+  }
+}

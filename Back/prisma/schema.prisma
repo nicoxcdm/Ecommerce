@@ -411,29 +411,45 @@ model EcommerceCategory {
   products    EcommerceProduct[]
 }
 
-model EcommerceProduct {
-  id          Int                @id @default(autoincrement())
-  name        String
-  description String
-  price       Float
-  listPrice   Float?
-  imageUrl    String
-  images      String[]           @default([])
-  stock       Int                @default(10)
-  isActive    Boolean            @default(true)
+model EcommerceLaboratory {
+  id          Int                @id @default(autoincrement()) @map("laboratorio_id")
+  name        String             @unique
+  slug        String             @unique
+  description String?
+  logoUrl     String?
   createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  products    EcommerceProduct[]
+}
 
-  categoryId  Int?
-  category    EcommerceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+model EcommerceProduct {
+  id            Int                  @id @default(autoincrement())
+  productId     String?              @map("product_id")
+  name          String
+  description   String
+  price         Float
+  listPrice     Float?
+  imageUrl      String
+  images        String[]             @default([])
+  stock         Int                  @default(10)
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
-  createdById Int?
-  createdBy   User?              @relation("CreatedEcommerceProducts", fields: [createdById], references: [id], onDelete: SetNull)
+  categoryId    Int?
+  category      EcommerceCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  reviews     EcommerceReview[]
-  orderItems  EcommerceOrderItem[]
+  laboratorioId Int?                 @map("laboratorio_id")
+  laboratorio   EcommerceLaboratory? @relation(fields: [laboratorioId], references: [id], onDelete: SetNull)
 
+  createdById   Int?
+  createdBy     User?                @relation("CreatedEcommerceProducts", fields: [createdById], references: [id], onDelete: SetNull)
+
+  reviews       EcommerceReview[]
+  orderItems    EcommerceOrderItem[]
+
+  @@index([productId])
   @@index([categoryId])
+  @@index([laboratorioId])
   @@index([isActive])
 }
 

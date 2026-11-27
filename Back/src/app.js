@@ -7,6 +7,7 @@ const { errorHandler } = require("./middlewares/errorHandler");
 
 const authRoutes = require("./modules/auth/auth.routes");
 const categoriesRoutes = require("./modules/categories/categories.routes");
+const laboratoriesRoutes = require("./modules/laboratories/laboratories.routes");
 const productsRoutes = require("./modules/products/products.routes");
 const paymentsRoutes = require("./modules/payments/payments.routes");
 
@@ -28,6 +29,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoriesRoutes);
+app.use("/api/laboratories", laboratoriesRoutes);
 app.use("/api/products", productsRoutes);
 app.use("/api/payments", paymentsRoutes);
 

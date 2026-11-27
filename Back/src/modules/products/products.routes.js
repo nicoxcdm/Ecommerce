@@ -14,6 +14,7 @@ function formatProduct(p) {
 
   return {
     id: p.id,
+    product_id: p.productId || `PROD-${p.id}`,
     name: p.name,
     description: p.description,
     price: p.price,
@@ -24,6 +25,10 @@ function formatProduct(p) {
     isActive: p.isActive,
     categoryId: p.categoryId,
     category: p.category ? { id: p.category.id, name: p.category.name, slug: p.category.slug } : null,
+    laboratorio_id: p.laboratorioId,
+    laboratorio: p.laboratorio
+      ? { laboratorio_id: p.laboratorio.id, id: p.laboratorio.id, name: p.laboratorio.name, slug: p.laboratorio.slug }
+      : null,
     createdAt: p.createdAt,
     reviewCount,
     averageRating,
@@ -46,7 +51,7 @@ function formatProduct(p) {
 // GET /api/products
 router.get("/", async (req, res, next) => {
   try {
-    const { search, category, minPrice, maxPrice, onSale, sort } = req.query;
+    const { search, category, laboratorio, minPrice, maxPrice, onSale, sort } = req.query;
 
     const where = { isActive: true };
 
@@ -67,6 +72,15 @@ router.get("/", async (req, res, next) => {
       }
     }
 
+    if (laboratorio && laboratorio !== "all") {
+      const labId = Number(laboratorio);
+      if (!Number.isNaN(labId)) {
+        where.laboratorioId = labId;
+      } else {
+        where.laboratorio = { slug: String(laboratorio) };
+      }
+    }
+
     if (minPrice !== undefined && minPrice !== "") {
       where.price = { ...(where.price || {}), gte: Number(minPrice) };
     }
@@ -84,6 +98,7 @@ router.get("/", async (req, res, next) => {
       orderBy,
       include: {
         category: true,
+        laboratorio: true,
         reviews: {
           include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
           orderBy: { createdAt: "desc" },
@@ -118,6 +133,7 @@ router.get("/:id", async (req, res, next) => {
       where: { id },
       include: {
         category: true,
+        laboratorio: true,
         reviews: {
           include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
           orderBy: { createdAt: "desc" },
@@ -138,7 +154,19 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/products (ADMIN / DIRECTORA)
 router.post("/", requireAuth, requireEcommerceAdmin, async (req, res, next) => {
   try {
-    const { name, description, price, listPrice, imageUrl, images, categoryId, stock } = req.body || {};
+    const {
+      product_id,
+      name,
+      description,
+      price,
+      listPrice,
+      imageUrl,
+      images,
+      categoryId,
+      laboratorio_id,
+      laboratorioId,
+      stock,
+    } = req.body || {};
 
     if (!name || !String(name).trim()) {
       return res.status(400).json({ error: "El nombre del producto es obligatorio" });
@@ -159,8 +187,15 @@ router.post("/", requireAuth, requireEcommerceAdmin, async (req, res, next) => {
       ? images.map((img) => String(img).trim()).filter(Boolean)
       : [];
 
+    const resolvedLabId = laboratorio_id ?? laboratorioId;
+    const resolvedProductId =
+      product_id && String(product_id).trim()
+        ? String(product_id).trim()
+        : `MZ-${Date.now().toString(36).toUpperCase()}`;
+
     const created = await prisma.ecommerceProduct.create({
       data: {
+        productId: resolvedProductId,
         name: String(name).trim(),
         description: String(description).trim(),
         price: Number(price),
@@ -169,10 +204,12 @@ router.post("/", requireAuth, requireEcommerceAdmin, async (req, res, next) => {
         images: extraImages,
         stock: stock !== undefined && stock !== "" ? Number(stock) : 10,
         categoryId: categoryId ? Number(categoryId) : null,
+        laboratorioId: resolvedLabId ? Number(resolvedLabId) : null,
         createdById: req.user.id,
       },
       include: {
         category: true,
+        laboratorio: true,
         reviews: {
           include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
         },

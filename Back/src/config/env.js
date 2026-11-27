@@ -18,7 +18,7 @@ const env = {
   paywayPrivateKey: process.env.PAYWAY_PRIVATE_KEY || "",
   paywayBaseUrl:
     (process.env.PAYWAY_ENV || "sandbox") === "production"
-      ? "https://live.decidir.com/api/v2"
+      ? "https://ventasonline.payway.com.ar/api/v2"
       : "https://developers.decidir.com/api/v2",
   backendPublicUrl: process.env.BACKEND_PUBLIC_URL || "http://localhost:3002",
 };

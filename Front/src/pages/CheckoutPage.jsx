@@ -50,7 +50,7 @@ export default function CheckoutPage() {
       const cleanNumber = cardNumber.replace(/\s+/g, '')
       const paywayUrl =
         paywayConfig.env === 'production'
-          ? 'https://live.decidir.com/api/v2/tokens'
+          ? 'https://ventasonline.payway.com.ar/api/v2/tokens'
           : 'https://developers.decidir.com/api/v2/tokens'
 
       const tokenRes = await fetch(paywayUrl, {

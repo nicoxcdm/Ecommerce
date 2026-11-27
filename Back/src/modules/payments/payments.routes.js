@@ -216,6 +216,14 @@ router.post("/checkout", optionalAuth, async (req, res, next) => {
     const prefBody = {
       items: mpItems,
       external_reference: `ecommerce_order_${order.id}`,
+      payment_methods: {
+        excluded_payment_types: [
+          { id: "credit_card" },
+          { id: "debit_card" },
+          { id: "ticket" },
+          { id: "atm" },
+        ],
+      },
       back_urls: {
         success: `${env.frontendOrigin}/?payment=success&orderId=${order.id}`,
         failure: `${env.frontendOrigin}/?payment=failure&orderId=${order.id}`,

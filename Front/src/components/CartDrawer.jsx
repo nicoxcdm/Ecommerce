@@ -8,6 +8,7 @@ export default function CartDrawer() {
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, subtotal } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [mpLoading, setMpLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [paywayConfig, setPaywayConfig] = useState({ configured: false, env: 'sandbox', publicKey: null })
@@ -101,6 +102,29 @@ export default function CartDrawer() {
       setError(err.response?.data?.error || 'Error al procesar el pago con Payway')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleMercadoPagoCheckout() {
+    if (items.length === 0) return
+    setMpLoading(true)
+    setError('')
+    try {
+      const payload = {
+        items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+        buyerEmail: user?.email || undefined,
+      }
+      const res = await api.post('/payments/checkout', payload)
+      const redirectUrl = res.data.initPoint || res.data.sandboxInitPoint
+      if (redirectUrl) {
+        window.location.href = redirectUrl
+      } else {
+        setError('No se pudo obtener el enlace de pago de Mercado Pago.')
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al iniciar el pago con Mercado Pago')
+    } finally {
+      setMpLoading(false)
     }
   }
 
@@ -357,17 +381,49 @@ export default function CartDrawer() {
                 {loading ? 'Procesando con Payway...' : 'Confirmar pago con Payway'}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setError('')
-                  setShowCardForm(true)
-                }}
-                className="w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
-              >
-                <CreditCard className="w-5 h-5" />
-                Pagar con Payway (Tarjeta)
-              </button>
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('')
+                    setShowCardForm(true)
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold flex items-center justify-center gap-2.5 transition-colors"
+                >
+                  <img
+                    src="/assets/tarjeta-logo.png"
+                    alt="Tarjeta"
+                    className="h-5 w-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  <span>Pagar con Tarjeta (Payway)</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={mpLoading}
+                  onClick={handleMercadoPagoCheckout}
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-mz-darkBorder bg-white dark:bg-mz-darkSurface hover:bg-slate-50 dark:hover:bg-mz-darkBorder disabled:opacity-60 text-slate-800 dark:text-white font-semibold flex items-center justify-center gap-2.5 transition-colors"
+                >
+                  {mpLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <img
+                      src="/assets/mercadopago-logo.jpg"
+                      alt="Mercado Pago"
+                      className="h-5 w-auto rounded object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  )}
+                  <span className="text-sm">
+                    {mpLoading ? 'Conectando...' : 'Mercado Pago (Dinero en cuenta / Prepaga)'}
+                  </span>
+                </button>
+              </div>
             )}
           </div>
         )}

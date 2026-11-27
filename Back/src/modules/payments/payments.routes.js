@@ -104,7 +104,7 @@ router.post("/payway/checkout", optionalAuth, async (req, res, next) => {
       fraud_detection: {
         send_to_cs: true,
         channel: "Web",
-        device_unique_id: `mz_${order.id}_${Date.now()}`,
+        device_unique_identifier: `mz_${order.id}_${Date.now()}`,
         bill_to: {
           city: "Buenos Aires",
           country: "AR",

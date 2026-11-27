@@ -48,6 +48,7 @@ export default function CheckoutPage() {
       }
 
       const cleanNumber = cardNumber.replace(/\s+/g, '')
+      const deviceUniqueId = `mz_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
       const paywayUrl =
         paywayConfig.env === 'production'
           ? 'https://ventasonline.payway.com.ar/api/v2/tokens'
@@ -69,6 +70,9 @@ export default function CheckoutPage() {
             type: 'dni',
             number: dni.trim(),
           },
+          fraud_detection: {
+            device_unique_identifier: deviceUniqueId,
+          },
         }),
       })
 
@@ -83,9 +87,10 @@ export default function CheckoutPage() {
         items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
         buyerEmail: user?.email || undefined,
         token: tokenData.id,
-        bin: cleanNumber.slice(0, 6),
+        bin: tokenData.bin || cleanNumber.slice(0, 6),
         paymentMethodId: Number(paymentMethodId),
         installments: Number(installments),
+        deviceUniqueId,
       })
 
       if (res.data?.ok) {

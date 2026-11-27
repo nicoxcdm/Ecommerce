@@ -24,7 +24,7 @@ router.get("/payway/config", (_req, res) => {
 // POST /api/payments/payway/checkout
 router.post("/payway/checkout", optionalAuth, async (req, res, next) => {
   try {
-    const { items, buyerEmail, token, paymentMethodId, bin, installments = 1 } = req.body || {};
+    const { items, buyerEmail, token, paymentMethodId, bin, installments = 1, deviceUniqueId } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "El carrito está vacío" });
@@ -104,7 +104,7 @@ router.post("/payway/checkout", optionalAuth, async (req, res, next) => {
       fraud_detection: {
         send_to_cs: true,
         channel: "Web",
-        device_unique_identifier: `mz_${order.id}_${Date.now()}`,
+        device_unique_identifier: deviceUniqueId || `mz_${order.id}_${Date.now()}`,
         bill_to: {
           city: "Buenos Aires",
           country: "AR",

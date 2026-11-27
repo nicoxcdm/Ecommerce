@@ -1,131 +1,16 @@
-import { useEffect, useState } from 'react'
-import { X, Trash2, Plus, Minus, ShoppingBag, CreditCard, Loader2, CheckCircle2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
-import { useAuth } from '../context/AuthContext'
-import api from '../services/api'
 
 export default function CartDrawer() {
-  const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, subtotal } = useCart()
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [mpLoading, setMpLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
-  const [paywayConfig, setPaywayConfig] = useState({ configured: false, env: 'sandbox', publicKey: null })
-  const [showCardForm, setShowCardForm] = useState(false)
-
-  // Campos de tarjeta para tokenización segura con Payway
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardHolder, setCardHolder] = useState('')
-  const [expMonth, setExpMonth] = useState('')
-  const [expYear, setExpYear] = useState('')
-  const [cvv, setCvv] = useState('')
-  const [dni, setDni] = useState('')
-  const [paymentMethodId, setPaymentMethodId] = useState('1') // 1=Visa, 104=Mastercard, 31=Visa Débito
-  const [installments, setInstallments] = useState('1')
-
-  useEffect(() => {
-    if (!isOpen) return
-    api
-      .get('/payments/payway/config')
-      .then((res) => setPaywayConfig(res.data))
-      .catch(() => {})
-  }, [isOpen])
+  const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal } = useCart()
+  const navigate = useNavigate()
 
   if (!isOpen) return null
 
-  async function handlePaywaySubmit(e) {
-    e.preventDefault()
-    if (items.length === 0) return
-    setLoading(true)
-    setError('')
-    setSuccessMsg('')
-
-    try {
-      if (!paywayConfig.configured || !paywayConfig.publicKey) {
-        setError('Payway está listo en el sistema, pero faltan cargar las claves (PAYWAY_PUBLIC_KEY y PAYWAY_PRIVATE_KEY) en Render.')
-        setLoading(false)
-        return
-      }
-
-      const cleanNumber = cardNumber.replace(/\s+/g, '')
-      const paywayUrl =
-        paywayConfig.env === 'production'
-          ? 'https://live.decidir.com/api/v2/tokens'
-          : 'https://developers.decidir.com/api/v2/tokens'
-
-      // 1. Tokenizar tarjeta directo con Payway (el backend nunca ve el número de tarjeta)
-      const tokenRes = await fetch(paywayUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: paywayConfig.publicKey,
-        },
-        body: JSON.stringify({
-          card_number: cleanNumber,
-          card_expiration_month: expMonth.padStart(2, '0'),
-          card_expiration_year: expYear.slice(-2),
-          security_code: cvv,
-          card_holder_name: cardHolder.trim(),
-          card_holder_identification: {
-            type: 'dni',
-            number: dni.trim(),
-          },
-        }),
-      })
-
-      const tokenData = await tokenRes.json().catch(() => ({}))
-      if (!tokenRes.ok || !tokenData.id) {
-        setError(tokenData?.message || 'Error al validar la tarjeta con Payway')
-        setLoading(false)
-        return
-      }
-
-      // 2. Enviar el token seguro a nuestro backend para procesar el cobro
-      const res = await api.post('/payments/payway/checkout', {
-        items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
-        buyerEmail: user?.email || undefined,
-        token: tokenData.id,
-        bin: cleanNumber.slice(0, 6),
-        paymentMethodId: Number(paymentMethodId),
-        installments: Number(installments),
-      })
-
-      if (res.data?.ok) {
-        setSuccessMsg(`¡Pago aprobado con Payway! Orden #${res.data.orderId}`)
-        clearCart()
-        setShowCardForm(false)
-      } else {
-        setError(`Pago en estado: ${res.data?.paywayStatus || 'pendiente'}`)
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error al procesar el pago con Payway')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleMercadoPagoCheckout() {
-    if (items.length === 0) return
-    setMpLoading(true)
-    setError('')
-    try {
-      const payload = {
-        items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
-        buyerEmail: user?.email || undefined,
-      }
-      const res = await api.post('/payments/checkout', payload)
-      const redirectUrl = res.data.initPoint || res.data.sandboxInitPoint
-      if (redirectUrl) {
-        window.location.href = redirectUrl
-      } else {
-        setError('No se pudo obtener el enlace de pago de Mercado Pago.')
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error al iniciar el pago con Mercado Pago')
-    } finally {
-      setMpLoading(false)
-    }
+  function handleGoToCheckout() {
+    setIsOpen(false)
+    navigate('/checkout')
   }
 
   return (
@@ -151,157 +36,14 @@ export default function CartDrawer() {
           </button>
         </div>
 
-        {/* Items o Formulario Payway */}
+        {/* Items */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {successMsg && (
-            <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
               <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
               <p className="font-medium">Tu carrito está vacío</p>
               <p className="text-sm mt-1">Agregá productos para comenzar tu compra.</p>
             </div>
-          ) : showCardForm ? (
-            <form id="payway-form" onSubmit={handlePaywaySubmit} className="space-y-3">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Pago con Tarjeta (Payway / BBVA)
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowCardForm(false)}
-                  className="text-xs text-primary-600 hover:underline"
-                >
-                  Volver al carrito
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    Tarjeta
-                  </label>
-                  <select
-                    value={paymentMethodId}
-                    onChange={(e) => setPaymentMethodId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-white dark:bg-mz-darkSurface px-2.5 py-2 text-xs text-black dark:text-white"
-                  >
-                    <option value="1">Visa Crédito</option>
-                    <option value="31">Visa Débito</option>
-                    <option value="104">Mastercard Crédito</option>
-                    <option value="105">Mastercard Débito</option>
-                    <option value="65">American Express</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    Cuotas
-                  </label>
-                  <select
-                    value={installments}
-                    onChange={(e) => setInstallments(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-white dark:bg-mz-darkSurface px-2.5 py-2 text-xs text-black dark:text-white"
-                  >
-                    <option value="1">1 pago</option>
-                    <option value="3">3 cuotas</option>
-                    <option value="6">6 cuotas</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                  Número de tarjeta
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={19}
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  placeholder="4507 9900 0000 4905"
-                  className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-3 py-2 text-sm text-black dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                  Nombre y apellido del titular
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="Como figura en la tarjeta"
-                  className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-3 py-2 text-sm text-black dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    Mes
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={2}
-                    value={expMonth}
-                    onChange={(e) => setExpMonth(e.target.value)}
-                    placeholder="MM"
-                    className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-2.5 py-2 text-sm text-black dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    Año
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={4}
-                    value={expYear}
-                    onChange={(e) => setExpYear(e.target.value)}
-                    placeholder="AA"
-                    className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-2.5 py-2 text-sm text-black dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                    CVV
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={4}
-                    value={cvv}
-                    onChange={(e) => setCvv(e.target.value)}
-                    placeholder="123"
-                    className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-2.5 py-2 text-sm text-black dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                  DNI del titular
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={dni}
-                  onChange={(e) => setDni(e.target.value)}
-                  placeholder="Sin puntos"
-                  className="w-full rounded-lg border border-slate-200 dark:border-mz-darkBorder bg-slate-50 dark:bg-mz-darkSurface px-3 py-2 text-sm text-black dark:text-white"
-                />
-              </div>
-            </form>
           ) : (
             items.map(({ product, quantity }) => (
               <div
@@ -356,75 +98,19 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="p-5 border-t border-slate-200 dark:border-slate-800 space-y-3 bg-slate-50/70 dark:bg-mz-darkCard">
-            {error && (
-              <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
-                {error}
-              </div>
-            )}
             <div className="flex items-center justify-between text-base font-bold text-slate-900 dark:text-white">
               <span>Total</span>
               <span>${subtotal.toLocaleString('es-AR')} ARS</span>
             </div>
 
-            {showCardForm ? (
-              <button
-                type="submit"
-                form="payway-form"
-                disabled={loading}
-                className="w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <CreditCard className="w-5 h-5" />
-                )}
-                {loading ? 'Procesando con Payway...' : 'Confirmar pago con Payway'}
-              </button>
-            ) : (
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setShowCardForm(true)
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold flex items-center justify-center gap-2.5 transition-colors"
-                >
-                  <img
-                    src="/assets/tarjeta-logo.png"
-                    alt="Tarjeta"
-                    className="h-5 w-auto object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                  <span>Pagar con Tarjeta (Payway)</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={mpLoading}
-                  onClick={handleMercadoPagoCheckout}
-                  className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-mz-darkBorder bg-white dark:bg-mz-darkSurface hover:bg-slate-50 dark:hover:bg-mz-darkBorder disabled:opacity-60 text-slate-800 dark:text-white font-semibold flex items-center justify-center gap-2.5 transition-colors"
-                >
-                  {mpLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <img
-                      src="/assets/mercadopago-logo.jpg"
-                      alt="Mercado Pago"
-                      className="h-5 w-auto rounded object-contain"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                  )}
-                  <span className="text-sm">
-                    {mpLoading ? 'Conectando...' : 'Mercado Pago (Dinero en cuenta / Prepaga)'}
-                  </span>
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleGoToCheckout}
+              className="w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
+            >
+              <span>Ir a pagar</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

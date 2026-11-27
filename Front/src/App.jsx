@@ -10,6 +10,7 @@ import ProductDetailPage from './pages/ProductDetailPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import CheckoutPage from './pages/CheckoutPage'
 import api from './services/api'
 
 const FALLBACK_CATEGORIES = [
@@ -65,6 +66,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
         </Routes>
       </div>
 

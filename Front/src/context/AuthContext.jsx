@@ -6,7 +6,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('mz_ecom_user')
+      const saved = localStorage.getItem('mz_ecom_user') || sessionStorage.getItem('mz_ecom_user')
       return saved ? JSON.parse(saved) : null
     } catch {
       return null
@@ -15,29 +15,36 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('mz_ecom_token')
+    const token = localStorage.getItem('mz_ecom_token') || sessionStorage.getItem('mz_ecom_token')
     if (!token) {
       setLoading(false)
       return
     }
+    const storage = localStorage.getItem('mz_ecom_token') ? localStorage : sessionStorage
     api
       .get('/auth/me')
       .then((res) => {
         setUser(res.data.user)
-        localStorage.setItem('mz_ecom_user', JSON.stringify(res.data.user))
+        storage.setItem('mz_ecom_user', JSON.stringify(res.data.user))
       })
       .catch(() => {
         localStorage.removeItem('mz_ecom_token')
         localStorage.removeItem('mz_ecom_user')
+        sessionStorage.removeItem('mz_ecom_token')
+        sessionStorage.removeItem('mz_ecom_user')
         setUser(null)
       })
       .finally(() => setLoading(false))
   }, [])
 
-  async function login(email, password) {
+  async function login(email, password, remember = true) {
     const res = await api.post('/auth/login', { email, password })
-    localStorage.setItem('mz_ecom_token', res.data.token)
-    localStorage.setItem('mz_ecom_user', JSON.stringify(res.data.user))
+    const storage = remember ? localStorage : sessionStorage
+    const other = remember ? sessionStorage : localStorage
+    other.removeItem('mz_ecom_token')
+    other.removeItem('mz_ecom_user')
+    storage.setItem('mz_ecom_token', res.data.token)
+    storage.setItem('mz_ecom_user', JSON.stringify(res.data.user))
     setUser(res.data.user)
     return res.data.user
   }
@@ -55,6 +62,8 @@ export function AuthProvider({ children }) {
   function logout() {
     localStorage.removeItem('mz_ecom_token')
     localStorage.removeItem('mz_ecom_user')
+    sessionStorage.removeItem('mz_ecom_token')
+    sessionStorage.removeItem('mz_ecom_user')
     setUser(null)
   }
 

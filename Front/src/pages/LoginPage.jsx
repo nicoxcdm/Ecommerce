@@ -11,6 +11,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -20,7 +21,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
+      await login(email, password, remember)
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.error || 'Error al iniciar sesión')
@@ -105,6 +106,16 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Recordarme</span>
+          </label>
 
           <button
             type="submit"

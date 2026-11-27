@@ -5,7 +5,7 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('mz_ecom_token')
+  const token = localStorage.getItem('mz_ecom_token') || sessionStorage.getItem('mz_ecom_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

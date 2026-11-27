@@ -52,47 +52,28 @@ export default function FilterSidebar({
 
         {/* Categorías */}
         <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-white dark:text-mz-peachLight mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-white dark:text-mz-peachLight mb-2">
             Categorías
-          </p>
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => onSelectCategory('all')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                selectedCategory === 'all'
-                  ? 'bg-[#2B1E1A] text-white'
-                  : 'text-white dark:text-mz-peachLight hover:bg-white/15 dark:hover:bg-mz-darkSurface'
-              }`}
-            >
+          </label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => onSelectCategory(e.target.value)}
+            className="w-full rounded-lg border border-[#967e55] dark:border-mz-darkBorder bg-white dark:bg-mz-darkSurface px-3 py-2 text-sm font-bold text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-600"
+          >
+            <option value="all" className="text-black bg-white dark:text-white dark:bg-mz-darkSurface">
               Todas
-            </button>
+            </option>
             {categories.map((cat) => (
-              <button
+              <option
                 key={cat.id}
-                type="button"
-                onClick={() => onSelectCategory(String(cat.id))}
-                className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-bold flex items-center justify-between transition-colors ${
-                  String(selectedCategory) === String(cat.id)
-                    ? 'bg-[#2B1E1A] text-white'
-                    : 'text-white dark:text-mz-peachLight hover:bg-white/15 dark:hover:bg-mz-darkSurface'
-                }`}
+                value={String(cat.id)}
+                className="text-black bg-white dark:text-white dark:bg-mz-darkSurface"
               >
-                <span className="truncate">{cat.name}</span>
-                {typeof cat.productCount === 'number' && (
-                  <span
-                    className={`text-xs ${
-                      String(selectedCategory) === String(cat.id)
-                        ? 'text-white/80'
-                        : 'text-white/70 dark:text-mz-peach/60'
-                    }`}
-                  >
-                    {cat.productCount}
-                  </span>
-                )}
-              </button>
+                {cat.name}
+                {typeof cat.productCount === 'number' ? ` (${cat.productCount})` : ''}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         {/* Rango de precio */}

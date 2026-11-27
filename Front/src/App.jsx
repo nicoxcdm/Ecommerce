@@ -12,16 +12,29 @@ import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import api from './services/api'
 
+const FALLBACK_CATEGORIES = [
+  { id: 'laboratorios', name: 'Laboratorios', slug: 'laboratorios' },
+  { id: 'aparatologia', name: 'Aparatología', slug: 'aparatologia' },
+  { id: 'cosmeticos', name: 'Cosméticos', slug: 'cosmeticos' },
+  { id: 'cuidado-corporal', name: 'Cuidado Corporal', slug: 'cuidado-corporal' },
+  { id: 'cuidado-facial', name: 'Cuidado Facial', slug: 'cuidado-facial' },
+  { id: 'insumos', name: 'Insumos', slug: 'insumos' },
+]
+
 function AppContent() {
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     api
       .get('/categories')
-      .then((res) => setCategories(res.data))
-      .catch(() => setCategories([]))
+      .then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setCategories(res.data)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   return (

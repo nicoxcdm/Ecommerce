@@ -106,12 +106,22 @@ router.post("/payway/checkout", optionalAuth, async (req, res, next) => {
     const pwData = await pwRes.json().catch(() => ({}));
 
     if (!pwRes.ok) {
+      console.error("[PAYWAY ERROR]", pwRes.status, JSON.stringify(pwData));
       await prisma.ecommerceOrder.update({
         where: { id: order.id },
         data: { status: "CANCELLED" },
       });
+      const validationMsg = Array.isArray(pwData?.validation_errors)
+        ? pwData.validation_errors.map((e) => `${e.code || ""}: ${e.param || ""}`).join(", ")
+        : "";
+      const reasonMsg =
+        pwData?.status_details?.error?.reason?.description ||
+        pwData?.message ||
+        validationMsg ||
+        pwData?.error_type ||
+        "Payway rechazó la operación";
       return res.status(400).json({
-        error: pwData?.message || pwData?.error_type || "Payway rechazó la operación",
+        error: `Payway (${pwRes.status}): ${reasonMsg}`,
         details: pwData,
       });
     }
